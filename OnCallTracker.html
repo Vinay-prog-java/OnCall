@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>On-Call Tracker - Login & Register</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f2f2f2;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background: #fff;
+      padding: 20px 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1, h2 {
+      text-align: center;
+      color: #333;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    /* Shared form styles for login and registration */
+    .form-section {
+      max-width: 400px;
+      margin: 80px auto;
+      background: #fff;
+      padding: 20px 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .form-section label {
+      display: block;
+      margin: 10px 0 5px;
+    }
+    .form-section input {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+    }
+    .error {
+      color: red;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .form-section button {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      border: none;
+      border-radius: 4px;
+      background: #007BFF;
+      color: #fff;
+      cursor: pointer;
+    }
+    .form-section button:hover {
+      background: #0056b3;
+    }
+    .link {
+      text-align: center;
+      margin-top: 15px;
+    }
+    .link a {
+      text-decoration: none;
+      color: #007BFF;
+      cursor: pointer;
+    }
+    /* Tracker styles */
+    #tracker-section {
+      display: none;
+    }
+    #logout-btn {
+      float: right;
+      margin: 10px;
+      background: #6c757d;
+      border: none;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #logout-btn:hover {
+      background: #565e64;
+    }
+    .session-info {
+      display: flex;
+      justify-content: space-around;
+      margin-bottom: 20px;
+    }
+    .session-info div {
+      font-size: 18px;
+      color: #555;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    table th,
+    table td {
+      padding: 10px;
+      border: 1px solid #ddd;
+      text-align: center;
+    }
+    table th {
+      background: #f7f7f7;
+      color: #333;
+    }
+    .buttons {
+      text-align: center;
+    }
+    .buttons button {
+      padding: 10px 20px;
+      margin: 5px;
+      font-size: 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      background: #007BFF;
+      color: #fff;
+      transition: background 0.3s;
+    }
+    .buttons button:hover {
+      background: #0056b3;
+    }
+    .buttons button.reset {
+      background: #dc3545;
+    }
+    .buttons button.reset:hover {
+      background: #c82333;
+    }
+  </style>
+</head>
+<body>
+  <!-- Login Section -->
+  <div id="login-section" class="form-section">
+    <h2>Login</h2>
+    <div class="error" id="login-error"></div>
+    <label for="login-username">Username:</label>
+    <input type="text" id="login-username" placeholder="Enter username" />
+    <label for="login-password">Password:</label>
+    <input type="password" id="login-password" placeholder="Enter password" />
+    <button id="login-btn">Login</button>
+    <div class="link">
+      Don't have an account? <a id="show-register" href="#">Register here</a>
+    </div>
+  </div>
+
+  <!-- Registration Section -->
+  <div id="register-section" class="form-section" style="display: none;">
+    <h2>Register</h2>
+    <div class="error" id="register-error"></div>
+    <label for="reg-username">Username:</label>
+    <input type="text" id="reg-username" placeholder="Enter username" />
+    <label for="reg-password">Password:</label>
+    <input type="password" id="reg-password" placeholder="Enter password" />
+    <button id="register-btn">Register</button>
+    <div class="link">
+      Already have an account? <a id="show-login" href="#">Login here</a>
+    </div>
+  </div>
+
+  <!-- Tracker Section -->
+  <div id="tracker-section" class="container">
+    <button id="logout-btn">Logout</button>
+    <h1>On-Call Tracker</h1>
+    <div class="session-info">
+      <div id="session-start">Session Started: --</div>
+      <div id="current-time">Current Time: --</div>
+    </div>
+    <table id="sessions-table">
+      <thead>
+        <tr>
+          <th>Start Time</th>
+          <th>End Time</th>
+          <th>Regular Hours</th>
+          <th>Overtime Hours</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Session entries will be populated here -->
+      </tbody>
+    </table>
+    <div class="buttons">
+      <button id="calculate-btn">Calculate Totals</button>
+      <button id="reset-btn" class="reset">Reset Sessions</button>
+    </div>
+  </div>
+
+  <script>
+    // Global variables
+    let currentUser = null;
+    let sessionStart = null;
+    const usersKey = 'onCallUsers'; // stores user credentials (username: hashedPassword)
+    // Each user's sessions are stored under key "sessions_<username>"
+
+    // Utility: Format Date as "yyyy-MM-dd HH:mm:ss"
+    function formatDate(date) {
+      const pad = n => n.toString().padStart(2, '0');
+      return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + ' ' +
+             pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds());
+    }
+
+    // Hash password using SHA-256 and return hex string
+    async function hashPassword(password) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(password);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // Retrieve and store users in localStorage
+    function getUsers() {
+      const usersJSON = localStorage.getItem(usersKey);
+      return usersJSON ? JSON.parse(usersJSON) : {};
+    }
+    function setUsers(users) {
+      localStorage.setItem(usersKey, JSON.stringify(users));
+    }
+
+    // Session storage helpers (per user)
+    function loadSessions() {
+      if (!currentUser) return [];
+      const sessionsJSON = localStorage.getItem('sessions_' + currentUser);
+      return sessionsJSON ? JSON.parse(sessionsJSON) : [];
+    }
+    function saveSessions(sessions) {
+      if (!currentUser) return;
+      localStorage.setItem('sessions_' + currentUser, JSON.stringify(sessions));
+    }
+
+    // Update the sessions table in the tracker UI
+    function updateTable() {
+      const sessions = loadSessions();
+      const tbody = document.querySelector('#sessions-table tbody');
+      tbody.innerHTML = '';
+      sessions.forEach(session => {
+        const tr = document.createElement('tr');
+        const startDate = new Date(session.start);
+        const endDate = new Date(session.end);
+        const duration = (endDate - startDate) / (1000 * 60 * 60);
+        const regular = Math.min(duration, 8).toFixed(2);
+        const overtime = (duration > 8 ? duration - 8 : 0).toFixed(2);
+        tr.innerHTML = `
+          <td>${formatDate(startDate)}</td>
+          <td>${formatDate(endDate)}</td>
+          <td>${regular}</td>
+          <td>${overtime}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Start a new session (record start time)
+    function startSession() {
+      sessionStart = new Date();
+      document.getElementById('session-start').textContent = "Session Started: " + formatDate(sessionStart);
+    }
+
+    // Update current time display every second
+    function updateCurrentTime() {
+      document.getElementById('current-time').textContent = "Current Time: " + formatDate(new Date());
+    }
+    setInterval(updateCurrentTime, 1000);
+
+    // Calculate totals across sessions
+    document.getElementById('calculate-btn').addEventListener('click', () => {
+      const sessions = loadSessions();
+      let totalRegular = 0, totalOvertime = 0;
+      sessions.forEach(session => {
+        const startDate = new Date(session.start);
+        const endDate = new Date(session.end);
+        const duration = (endDate - startDate) / (1000 * 60 * 60);
+        totalRegular += Math.min(duration, 8);
+        totalOvertime += duration > 8 ? duration - 8 : 0;
+      });
+      alert(`Total Regular Hours: ${totalRegular.toFixed(2)}\nTotal Overtime Hours: ${totalOvertime.toFixed(2)}`);
+    });
+
+    // Reset sessions for current user
+    document.getElementById('reset-btn').addEventListener('click', () => {
+      if (confirm("Are you sure you want to clear all sessions?")) {
+        localStorage.removeItem('sessions_' + currentUser);
+        updateTable();
+        startSession();
+      }
+    });
+
+    // Logout the user and show the login form
+    document.getElementById('logout-btn').addEventListener('click', logout);
+    function logout() {
+      // Log current session if duration is valid
+      const sessionEnd = new Date();
+      if (sessionEnd > sessionStart) {
+        const sessions = loadSessions();
+        sessions.push({ start: sessionStart, end: sessionEnd });
+        saveSessions(sessions);
+      }
+      currentUser = null;
+      document.getElementById('login-username').value = "";
+      document.getElementById('login-password').value = "";
+      document.getElementById('login-error').textContent = "";
+      showSection('login');
+    }
+
+    // Show the tracker UI and hide the auth forms
+    function showTracker() {
+      document.getElementById('login-section').style.display = 'none';
+      document.getElementById('register-section').style.display = 'none';
+      document.getElementById('tracker-section').style.display = 'block';
+      startSession();
+      updateTable();
+    }
+
+    // Show a specific section ("login", "register", or "tracker")
+    function showSection(section) {
+      document.getElementById('login-section').style.display = (section === 'login') ? 'block' : 'none';
+      document.getElementById('register-section').style.display = (section === 'register') ? 'block' : 'none';
+      document.getElementById('tracker-section').style.display = (section === 'tracker') ? 'block' : 'none';
+    }
+
+    // Login handler
+    document.getElementById('login-btn').addEventListener('click', async () => {
+      const username = document.getElementById('login-username').value.trim();
+      const password = document.getElementById('login-password').value;
+      const errorDiv = document.getElementById('login-error');
+      errorDiv.textContent = "";
+      if (!username || !password) {
+        errorDiv.textContent = "Please enter both username and password.";
+        return;
+      }
+      const users = getUsers();
+      if (!(username in users)) {
+        errorDiv.textContent = "User does not exist. Please register.";
+        return;
+      }
+      const hashed = await hashPassword(password);
+      if (users[username] !== hashed) {
+        errorDiv.textContent = "Incorrect password.";
+        return;
+      }
+      // Successful login
+      currentUser = username;
+      showTracker();
+    });
+
+    // Registration handler
+    document.getElementById('register-btn').addEventListener('click', async () => {
+      const username = document.getElementById('reg-username').value.trim();
+      const password = document.getElementById('reg-password').value;
+      const errorDiv = document.getElementById('register-error');
+      errorDiv.textContent = "";
+      if (!username || !password) {
+        errorDiv.textContent = "Please enter both username and password.";
+        return;
+      }
+      const users = getUsers();
+      if (username in users) {
+        errorDiv.textContent = "User already exists. Please login.";
+        return;
+      }
+      const hashed = await hashPassword(password);
+      users[username] = hashed;
+      setUsers(users);
+      alert('Registration successful! You can now login.');
+      // Clear the registration form and show login form.
+      document.getElementById('reg-username').value = "";
+      document.getElementById('reg-password').value = "";
+      showSection('login');
+    });
+
+    // Toggle links between login and register forms
+    document.getElementById('show-register').addEventListener('click', function(e) {
+      e.preventDefault();
+      showSection('register');
+    });
+    document.getElementById('show-login').addEventListener('click', function(e) {
+      e.preventDefault();
+      showSection('login');
+    });
+
+    // Log current session on page unload (if user did not logout)
+    window.addEventListener('beforeunload', () => {
+      if (currentUser && sessionStart) {
+        const sessionEnd = new Date();
+        const sessions = loadSessions();
+        sessions.push({ start: sessionStart, end: sessionEnd });
+        saveSessions(sessions);
+      }
+    });
+  </script>
+</body>
+</html>
